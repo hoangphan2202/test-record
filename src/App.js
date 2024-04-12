@@ -1,9 +1,10 @@
 import './App.css';
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioRecorder from "./components/AudioRecorder";
 import { useSocket } from "./hooks/useSocket";
 import ReactPlayer from "react-player";
 import { assembleAuthUrl } from "./getUrl";
+import audioBufferToWav from "audiobuffer-to-wav";
 
 export function processData(
     data) {
@@ -82,7 +83,6 @@ function App() {
   const [scriptNode, setScriptNode] = useState(null);
   const [fileRecorded, setFileRecorded] = useState(null);
   const [myStream, setMyStream] = useState(null);
-
   // const { socket } = useSocket();
   const [texts, setTexts] = useState([]);
   const audioRef = useRef(null);
@@ -116,10 +116,12 @@ function App() {
             // Set up WebRTC with echo cancellation
             const stream = await navigator.mediaDevices.getUserMedia({ audio: {  sampleRate: 16000, } });
             setMyStream(stream);
+
             // Set up Web Audio API for noise suppression
             const _audioContext = new (window.AudioContext || window.webkitAudioContext)({
               sampleRate: 16000, // Set the sample rate to 16000
             });
+
             const _microphoneSource = _audioContext.createMediaStreamSource(stream);
             const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
             _scriptNode.onaudioprocess = function(event) {
@@ -180,7 +182,7 @@ function App() {
           }
           if (data?.data?.status === 2) {
             try {
-              stopRecording();
+              // stopRecording();
               // if (data?.data?.result?.ws[0]?.cw?.[0]?.w === '') {
               //   onEndWithoutData?.();
               // }
@@ -269,6 +271,7 @@ function App() {
         setupAudioProcessing();
       }
       setRecording(!recording);
+
     }catch (e) {
       console.log(e);
     }
@@ -492,9 +495,9 @@ function App() {
             controls={true}
             controlsList="nodownload"
         />
-        {/*<AudioRecorder onFinish={({ id, audio }) => {*/}
+        {/*<AudioRecorder*/}
+        {/*    onFinish={({ id, audio }) => {*/}
         {/*  audioRecordRef.current.src = window.URL.createObjectURL(audio);*/}
-
         {/*}}/>*/}
 
         <p>speakingText</p>
@@ -513,10 +516,7 @@ function App() {
         {/*    </>*/}
         {/*)}*/}
 
-        {/*<audio ref={audioRecordRef} autoPlay={false} controls/>*/}
-        {/*<button*/}
-        {/*    onClick={downloadAudio}*/}
-        {/*>download audio</button>*/}
+
         {
           texts.reverse().map((text, index) => (
               <p key={index}>
@@ -530,6 +530,11 @@ function App() {
         }}>
           {recording ? "Stop" : "Start"} Recording
         </button>
+        {/*<audio ref={audioRecordRef} autoPlay={false} controls/>*/}
+        {/*<button*/}
+        {/*    onClick={downloadAudio}*/}
+        {/*>download audio*/}
+        {/*</button>*/}
       </header>
     </div>
   );
