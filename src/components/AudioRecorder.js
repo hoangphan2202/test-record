@@ -58,7 +58,6 @@ const AudioRecorder = ({ onFinish }) => {
                     const wavData = audioBufferToWav(decodedData);
                     const wavBlob = new Blob([wavData], { type: 'audio/wav' });
                     setContent(wavBlob)
-                    // Lưu trữ hoặc tải xuống tệp tin wavBlob ở đây
                 });
             };
         };
