@@ -1,13 +1,9 @@
 import './App.css';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import AudioRecorder from "./components/AudioRecorder";
-import { useSocket } from "./hooks/useSocket";
-import ReactPlayer from "react-player";
+import React, {  useEffect, useMemo, useRef, useState } from "react";
 import { assembleAuthUrl } from "./getUrl";
-import audioBufferToWav from "audiobuffer-to-wav";
-import AudioRecorderV2 from "./components/AudioRecorderV2";
 import { VideoStreamMerger } from "video-stream-merger";
-import usePlaySound from "src/hooks/usePlaySound";
+import usePlaySound from "./hooks/usePlaySound";
+import audioBufferToWav from "audiobuffer-to-wav";
 
 export function processData(
     data) {
@@ -87,32 +83,32 @@ function App() {
   const [fileRecorded, setFileRecorded] = useState(null);
   const [myStream, setMyStream] = useState(null);
   // const { socket } = useSocket();
-  const [texts, setTexts] = useState([]);
   const audioRef = useRef(null);
   const audioRecordRef = useRef(null);
-  const fileRef = useRef(null);
   const [data, setData] = useState([]);
+  const [prevData, setPrevData] = useState([]);
   const [webSocket, setWebSocket] = useState(null);
   const [audioMerger, setAudioMerger] = useState(null);
-  const {onSpeak} = usePlaySound(null);
+  const {onSpeak} = usePlaySound();
   const [shouldSend, setShouldSend] = useState(false);
-
-  // useEffect(() => {
-  // const getStream =async () =>{
-  //   const audioMerger = new VideoStreamMerger();
-  //   audioMerger.start()
-  //   const stream = await navigator.mediaDevices.getUserMedia({ audio: {  sampleRate: 16000, }, video: true });
-  //   audioMerger.addStream(stream);
-  //   setAudioMerger(audioMerger);
-  //   setMyStream(stream);
-  // }
-  // getStream()
-  // }, []);
-
+  const [voiceRecorder, setVoiceRecorder] = useState(null);
+  const [isFilter, setIsFilter] = useState(true);
+  const audioContextRef = useRef();
+  const audioInputRef = useRef();
+  const processorRef = useRef();
   const setupAudioProcessing = async () => {
     try {
         const ws = new WebSocket(assembleAuthUrl('wss://iat-api-sg.xf-yun.com/v2/iat','dd18aa1ba84c912506c346f5ab04dff3','7141c8e65ebe846eddcb0d89ed0ac4a6'));
         setWebSocket(ws);
+        const audioRecordStream = await navigator.mediaDevices.getUserMedia({ audio: {
+            sampleRate: 16000,
+            sampleSize: 16,
+            channelCount: 1,
+            echoCancellation: isFilter,
+            noiseSuppression: isFilter,
+          } });
+        const mediaRecorder = new MediaRecorder(audioRecordStream);
+        setVoiceRecorder(mediaRecorder);
 
       ws.onopen = async () => {
           try {
@@ -132,73 +128,151 @@ function App() {
                 })
             );
 
-            audioRef.current.play();
+            if (audioRef.current) {
+              audioRef.current.play();
+            }
             const audioMerger = new VideoStreamMerger();
             audioMerger.start();
-            // Start processing audio chunks;
-            // Set up WebRTC with echo cancellation
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: {  sampleRate: 16000, echoCancellation: true } });
-            const audioMediaSource = audioRef.current.captureStream();
-            const audioTrack = audioMediaSource.getAudioTracks();
-            const streamTrack = stream.getAudioTracks();
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: {
+                sampleRate: 16000,
+                sampleSize: 16,
+                channelCount: 1,
+                echoCancellation: isFilter,
+                noiseSuppression: isFilter,
+              } });
 
-            audioTrack.forEach((track) => {
-                track.enabled = false;
+            const audioMediaSource = audioRef?.current?.captureStream();
+            const audioTrack = audioMediaSource?.getAudioTracks();
+            const streamTrack = audioStream?.getAudioTracks();
+
+            streamTrack?.map((track) => {
+              console.log("streamTrack");
+              console.log(track);
+              track.enabled = true;
             })
-            streamTrack.forEach((track) => {
-                track.enabled = true;
-            });
 
-            audioMerger.addStream(stream);
-            audioMerger.addStream(audioMediaSource);
-            setMyStream(stream);
+            audioTrack?.map(async(track) => {
+              console.log("audioTrack");
+              console.log(track);
+              // try {
+              //   audioMediaSource.removeTrack(track);
+              //   // Let it go
+              //   track.stop();
+              // }catch (e) {
+              //   console.log(e);
+              // }
+              track.enabled = false;
+            })
+
+            audioMerger.addStream(audioStream);
+            if (audioMediaSource){
+              console.log("audioStream");
+              console.log(audioStream);
+              console.log("audioMediaSource");
+              console.log(audioMediaSource);
+              audioMerger.addStream(audioMediaSource);
+            }
+
+            setMyStream(audioStream);
             setAudioMerger(audioMerger);
-            // Set up Web Audio API for noise suppression
-            const _audioContext = new (window.AudioContext || window.webkitAudioContext)({
-              sampleRate: 16000, // Set the sample rate to 16000
-            });
-            // Start the merging. Calling this makes the result available to us
-            // checkAudio()
-            const _microphoneSource = _audioContext.createMediaStreamSource(audioMerger.result);
-            const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
-            _scriptNode.onaudioprocess = function(event) {
-              const inputData = event.inputBuffer.getChannelData(0);
-              const buffer = new Int16Array(inputData.length);
 
-              for (let i = 0; i < inputData.length; i++) {
-                buffer[i] = inputData[i] * 0x7fff;
-              }
+            // // Giả sử `currentStream` là MediaStream hiện tại, bao gồm cả âm thanh từ microphone và audio đang phát
+            // const currentStream = audioMerger.result;
+            //
+            // // Lấy tất cả các audio track
+            // const audioTracks = currentStream.getAudioTracks();
+            //
+            // // Lọc ra các audio track từ microphone
+            // const microphoneTracks = audioTracks.filter(track => {
+            //   console.log("microphoneTracks");
+            //   console.log(track);
+            //  // return  track.kind === 'audio' && track.label.includes('microphone')
+            //  return  track
+            // });
+            //
+            // // Tạo một MediaStream mới chỉ chứa các track từ microphone
+            // const microphoneStream = new MediaStream(microphoneTracks);
 
-              // Convert audio data to Uint8Array
-              const uint8ArrayData = new Uint8Array(buffer.buffer);
+            audioContextRef.current = new window.AudioContext();
 
-              // Convert Uint8Array to base64
-              let binary = '';
-              uint8ArrayData.forEach(function(byte) {
-                binary += String.fromCharCode(byte);
-              });
-              const base64Data = btoa(binary);
-              // const audio = new Audio(`data:audio/wav;base64,${base64Data}`);
-              // audio.play();
-              ws.send(
-                  JSON.stringify({
-                    data: {
-                      status: 1,
-                      format: 'audio/L16;rate=16000',
-                      encoding: 'raw',
-                      audio: base64Data,
-                    },
-                  })
-              )
+            await audioContextRef.current.audioWorklet.addModule(
+                "/src/worklets/recorderWorkletProcessor.js"
+            );
 
-              // socket.emit('audio_stream', { audio: base64Data, end: false });
-              // Your base64 audio data is now available for processing or handling
-            };
-            _microphoneSource.connect(_scriptNode);
-            _scriptNode.connect(_audioContext.destination);
-            setAudioContext(_audioContext);
-            setMicrophoneSource(_microphoneSource);
-            setScriptNode(_scriptNode);
+            audioContextRef.current.resume();
+
+            // if (microphoneStream.getAudioTracks().length > 0) {
+              audioInputRef.current = audioContextRef.current.createMediaStreamSource(audioMerger.result);
+              processorRef.current = new AudioWorkletNode(
+                  audioContextRef.current,
+                  "recorder.worklet"
+              );
+
+              processorRef.current.connect(audioContextRef.current.destination);
+              audioContextRef.current.resume();
+
+              audioInputRef.current.connect(processorRef.current);
+
+              processorRef.current.port.onmessage = (event) => {
+                const inputData = event.data;
+                var base64 = btoa(
+                    new Uint8Array(inputData)
+                        .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                ws.send(
+                    JSON.stringify({
+                      data: {
+                        status: 1,
+                        format: 'audio/L16;rate=16000',
+                        encoding: 'raw',
+                        audio: base64,
+                      },
+                    })
+                )
+              };
+
+            // } else {
+            //   console.error('No audio tracks in the microphone stream');
+            // }
+
+            // const _microphoneSource = _audioContext.createMediaStreamSource(audioMerger.result);
+            // const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
+            // _scriptNode.onaudioprocess = function(event) {
+            //   const inputData = event.inputBuffer.getChannelData(0);
+            //   const buffer = new Int16Array(inputData.length);
+            //
+            //   for (let i = 0; i < inputData.length; i++) {
+            //     buffer[i] = inputData[i] * 0x7fff;
+            //   }
+            //
+            //   // Convert audio data to Uint8Array
+            //   const uint8ArrayData = new Uint8Array(buffer.buffer);
+            //
+            //   // Convert Uint8Array to base64
+            //   let binary = '';
+            //   uint8ArrayData.forEach(function(byte) {
+            //     binary += String.fromCharCode(byte);
+            //   });
+            //   const base64Data = btoa(binary);
+            //   ws.send(
+            //       JSON.stringify({
+            //         data: {
+            //           status: 1,
+            //           format: 'audio/L16;rate=16000',
+            //           encoding: 'raw',
+            //           audio: base64Data,
+            //         },
+            //       })
+            //   )
+            //
+            //   // socket.emit('audio_stream', { audio: base64Data, end: false });
+            //   // Your base64 audio data is now available for processing or handling
+            // };
+            // _microphoneSource.connect(_scriptNode);
+            // _scriptNode.connect(_audioContext.destination);
+            // setAudioContext(_audioContext);
+            // setMicrophoneSource(_microphoneSource);
+            // setScriptNode(_scriptNode);
           } catch (e) {
             console.log(e);
             // setConnectingWebSocket(false);
@@ -208,6 +282,7 @@ function App() {
           // an error occurred
           console.log("e");
           console.log(e);
+          ws.close()
           // setIsRecording(false);
           // setConnectingWebSocket(false);
         };
@@ -215,23 +290,34 @@ function App() {
           const data = JSON.parse(e.data);
           if (data?.code === 0 && data?.message === 'success') {
             setData((prevState) => [...prevState, data]);
+            ;
           }
           if (data?.data?.status === 2) {
             try {
-              // stopRecording();
-              // if (data?.data?.result?.ws[0]?.cw?.[0]?.w === '') {
-              //   onEndWithoutData?.();
+              setRecording(false);
+              setShouldSend(true);
+              setWebSocket(null);
+              microphoneSource?.disconnect();
+              scriptNode?.disconnect();
+              audioContext?.close();
+              stopRecording(audioRecordStream, mediaRecorder)
+              setPrevData(data)
+              setData((prevState) => {
+                setPrevData(prevState)
+                return []
+              });
+              ws.close()
+              // const tracks = myStream.getAudioTracks();
+              // for (const track of tracks) {
+              //   track.stop();
               // }
-              // await AudioRecord.stop();
-              // await audioRecorderPlayer.stopRecorder();
-              // audioRecorderPlayer.removeRecordBackListener();
-              // setIsRecording(false);
-              // setShouldSend(true);
-              // setMetering(0);
-              // setWebSocket(null);
-              // onEnd?.();
+              // voiceRecorder.stop();
+              // setVoiceRecorder(null);
+              // setData([])
             } catch (error) {
-              console.error('Error stopping recording:', error);
+              ws.close()
+
+              console.log('Error stopping recording:', error);
             }
           }
         };
@@ -242,55 +328,22 @@ function App() {
     }
   };
 
-  // const playAudioFromBase64 = (base64Data) => {
-  //   try {
-  //     const decodedData = atob(base64Data);
-  //     console.log("decodedData");
-  //     console.log(decodedData);
-  //     const audio = new Audio(`data:audio/wav;base64,${decodedData}`);
-  //
-  //     // audio.play();
-  //   }catch (e) {
-  //     console.log(e);
-  //   }
-  // };
-
-  const playAudioFile = useCallback((base64Data) => {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const decodedData = atob(base64Data);
-    const arrayBuffer = new ArrayBuffer(decodedData.length);
-    const view = new Uint8Array(arrayBuffer);
-    for (let i = 0; i < decodedData.length; i++) {
-      view[i] = decodedData.charCodeAt(i);
-    }
-    audioContext.decodeAudioData(arrayBuffer, function(buffer) {
-      const source = audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioContext.destination);
-      source.start(0);
-    }, function(err) {
-      console.error('Error decoding audio data:', err);
-    });
-  }, [audioContext]);
-
-  const stopRecording = () => {
-    microphoneSource?.disconnect();
-    scriptNode?.disconnect();
-    audioContext?.close();
-    webSocket.send(
-        JSON.stringify({
-          data: { status: 2, format: 'audio/L16;rate=16000', encoding: 'raw', audio: '' },
-        })
-    )
-    setData([]);
+  const stopRecording = (audioRecordStream, voiceRecorder) => {
+   try {
+     const tracks = audioRecordStream.getAudioTracks();
+     for (const track of tracks) {
+       track.stop();
+     }
+     voiceRecorder.stop();
+     setVoiceRecorder(null);
+   }catch (e) {
+     console.log(e);
+   }
   }
 
   const onClick = () => {
     try {
       if (recording) {
-        console.log(fileRecorded);
-        // stop recording
-        // socket.emit('audio_stream', { audio: '', end: true });
         microphoneSource?.disconnect();
         scriptNode?.disconnect();
         audioContext?.close();
@@ -300,7 +353,6 @@ function App() {
             })
         )
         setData([]);
-        // playAudioFile(fileRecorded)
       } else {
         // start recording
         setupAudioProcessing();
@@ -312,193 +364,6 @@ function App() {
     }
   };
 
-  // useEffect(() => {
-  //   if (socket) {
-  //     socket.on('data', (data) => {
-  //       console.log('data received:');
-  //       console.log(data)
-  //       if (data?.audio) {
-  //         playAudioFile(data.audio);
-  //       }
-  //       if (data?.text_translate) {
-  //         setTexts((prev) => [...prev, data.text_translate]);
-  //       }
-  //     });
-  //   }
-  // }, [socket])
-
-  function downloadAudio() {
-    const link = document.createElement('a');
-    link.href = audioRecordRef.current.src;
-    link.download = 'audio.wav';
-    link.click();
-  }
-
-  // useEffect(() => {
-  //   checkAudio()
-  // }, []);
-
-  // const checkAudio = () => {
-  //     const audio = audioRef.current
-  //     audio.onplay = (e) => {
-  //       // When seek to begin of audio
-  //       // if ( e.target.currentTime === 0 ) {
-  //       //   console.log('When seek to begin of audio');
-  //       //   return;
-  //       // }
-  //       // // When seek any where
-  //       // if ( e.target.currentTime !== 0 ) {
-  //       //   console.log('When seek any where');
-  //       //   return;
-  //       // }
-  //
-  //       console.log('Audio play first time from 0');
-  //       const audioMediaSource = audioRef.current.captureStream();
-  //
-  //       // const videoTracks = audioMediaSource.getVideoTracks();
-  //       //
-  //       // if ( videoTracks.length > 0 ) {
-  //       //   videoTracks.map( videoTrack => {
-  //       //     audioMediaSource.removeTrack(videoTrack);
-  //       //     // Let it go
-  //       //     videoTrack.stop();
-  //       //   });
-  //       // }
-  //
-  //       const audioTrack = audioMediaSource.getAudioTracks();
-  //       console.log("audioTrack");
-  //       console.log(audioTrack);
-  //       if ( audioTrack ) {
-  //         // this.localBackgroundAudioTrack = audioTrack;
-  //
-  //         // Handle for Presenter: add to Presenter media stream via audioMerger
-  //         // const audioMerger = this.audioMerger;
-  //         if ( audioMerger && audioMerger.started && audioMediaSource ) {
-  //           audioMerger.addStream( audioMediaSource );
-  //         }
-  //
-  //         // // Handle for Viewer peer connections
-  //         // // Use to push to viewer peerConnection when make invite connection or replace if the viewer peerConnection already existed
-  //         // // Cannot use current audioMerger result because it contain viewer audio
-  //         // // Create new audio merger for connection to viewer
-  //         // // Just merge audio
-  //         // // Create new audio merger for localAudio and background audio
-  //         // const inviteAudioMerger = this.inviteAudioMerger = new VideoStreamMerger();
-  //         // inviteAudioMerger.addStream(backgroundAudioStream);
-  //         // inviteAudioMerger.addStream(this.localAudioStream);
-  //         // // Start the merging. Calling this makes the result available to us
-  //         // inviteAudioMerger.start();
-  //         // // Note: when presenter share audio and connect to viewer after that, let get audio from
-  //         // // inviteAudioMerger to use in antWebRTCMediaStream
-  //
-  //         // const newAudioTrack = inviteAudioMerger.result.getAudioTracks()[0];
-  //         // Object.values(this.peerConnections).map( async peerConnection => {
-  //         //   const presenterMediaStream = peerConnection.getLocalPresenterStream();
-  //         //   if ( presenterMediaStream ) {
-  //         //     const currentPresenterAudioTrack = presenterMediaStream.getAudioTracks()[0];
-  //         //     await peerConnection.replaceTrack(currentPresenterAudioTrack, newAudioTrack);
-  //         //   }
-  //         // });
-  //
-  //         // // Change the audio share state when all things done
-  //         // setTimeout(() => {
-  //         //   // Cause by if the user seek right after the audio input appear
-  //         //   // Sometime we got quiet sound, so just display the audio input after 1s to prevent it
-  //         //   console.log('setIsAudioShared:', shareAudio);
-  //         //   this.props.setIsAudioShared(shareAudio);
-  //         // }, 500);
-  //
-  //         // When user click stop share source on chrome sharing bar
-  //         // backgroundAudioStream.addEventListener('inactive', this.handleBackgroundAudioStreamInactive);
-  //       } else {
-  //         console.log('Cannot get background audio sound, please try again or contact to supporter!');
-  //       }
-  //
-  //     };
-  // }
-
-  // const playAudio = (e) => {
-  //   if (e.target.files.length) {
-  //     const file = e.target.files[0];
-  //     const url = URL.createObjectURL(file);
-  //     audioRef.current.src = url;
-  //     audioRef.current.play();
-  //
-  //     const audio = audioRef.current
-  //
-  //     audio.onplay = (e) => {
-  //       // When seek to begin of audio
-  //       if ( e.target.currentTime === 0 ) {
-  //         console.log('When seek to begin of audio');
-  //         return;
-  //       }
-  //       // When seek any where
-  //       if ( e.target.currentTime !== 0 ) {
-  //         console.log('When seek any where');
-  //         return;
-  //       }
-  //       console.log('Audio play first time from 0');
-  //       const audioMediaSource = audioRef.current.captureStream();
-  //
-  //       //   const videoTracks = audioMediaSource.getVideoTracks();
-  //       //
-  //       // if ( videoTracks.length > 0 ) {
-  //       //     videoTracks.map( videoTrack => {
-  //       //       audioMediaSource.removeTrack(videoTrack);
-  //       //       // Let it go
-  //       //       videoTrack.stop();
-  //       //     });
-  //       //   }
-  //         const audioTrack = audioMediaSource.getAudioTracks();
-  //         if ( audioTrack ) {
-  //           // this.localBackgroundAudioTrack = audioTrack;
-  //
-  //           // Handle for Presenter: add to Presenter media stream via audioMerger
-  //           // const audioMerger = this.audioMerger;
-  //           if ( audioMerger && audioMerger.started && audioMediaSource ) {
-  //             audioMerger.addStream( audioMediaSource );
-  //           }
-  //
-  //           // // Handle for Viewer peer connections
-  //           // // Use to push to viewer peerConnection when make invite connection or replace if the viewer peerConnection already existed
-  //           // // Cannot use current audioMerger result because it contain viewer audio
-  //           // // Create new audio merger for connection to viewer
-  //           // // Just merge audio
-  //           // // Create new audio merger for localAudio and background audio
-  //           // const inviteAudioMerger = this.inviteAudioMerger = new VideoStreamMerger();
-  //           // inviteAudioMerger.addStream(backgroundAudioStream);
-  //           // inviteAudioMerger.addStream(this.localAudioStream);
-  //           // // Start the merging. Calling this makes the result available to us
-  //           // inviteAudioMerger.start();
-  //           // // Note: when presenter share audio and connect to viewer after that, let get audio from
-  //           // // inviteAudioMerger to use in antWebRTCMediaStream
-  //
-  //           // const newAudioTrack = inviteAudioMerger.result.getAudioTracks()[0];
-  //           // Object.values(this.peerConnections).map( async peerConnection => {
-  //           //   const presenterMediaStream = peerConnection.getLocalPresenterStream();
-  //           //   if ( presenterMediaStream ) {
-  //           //     const currentPresenterAudioTrack = presenterMediaStream.getAudioTracks()[0];
-  //           //     await peerConnection.replaceTrack(currentPresenterAudioTrack, newAudioTrack);
-  //           //   }
-  //           // });
-  //
-  //           // // Change the audio share state when all things done
-  //           // setTimeout(() => {
-  //           //   // Cause by if the user seek right after the audio input appear
-  //           //   // Sometime we got quiet sound, so just display the audio input after 1s to prevent it
-  //           //   console.log('setIsAudioShared:', shareAudio);
-  //           //   this.props.setIsAudioShared(shareAudio);
-  //           // }, 500);
-  //
-  //           // When user click stop share source on chrome sharing bar
-  //           // backgroundAudioStream.addEventListener('inactive', this.handleBackgroundAudioStreamInactive);
-  //         } else {
-  //           console.log('Cannot get background audio sound, please try again or contact to supporter!');
-  //         }
-  //     };
-  //   }
-  // }
-
   const speakingText = useMemo(() => {
     if (data?.length) {
       // @ts-ignore
@@ -507,14 +372,62 @@ function App() {
     return '';
   }, [data]);
 
+  const speakingTextPrev = useMemo(() => {
+    if (prevData?.length) {
+      // @ts-ignore
+      return processData(formatData(prevData));
+    }
+    return '';
+  }, [prevData]);
+
+
+  // useEffect(() => {
+  //   if (shouldSend) {
+  //     // sendData?.();
+  //     setShouldSend(false);
+  //     setData([]);
+  //     onSpeak(speakingText);
+  //     // startRecording();
+  //   }
+  // }, [shouldSend, speakingText])
+
+  /**
+   * This hook is triggered when we start the recording
+   */
+  React.useEffect(() => {
+   const check = async () => {
+    try {
+      if (!recording || !voiceRecorder) return;
+
+      voiceRecorder.start();
+
+      voiceRecorder.ondataavailable = ({ data }) => {
+        // const audioBlob = event.data;
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(data);
+        reader.onloadend = function() {
+          const audioData = reader.result;
+          const audioContext = new AudioContext();
+          audioContext.decodeAudioData(audioData, function(decodedData) {
+            const wavData = audioBufferToWav(decodedData);
+            const wavBlob = new Blob([wavData], { type: 'audio/wav' });
+            audioRef.current.src = URL.createObjectURL(wavBlob);
+            audioRef.current.play();
+          });
+        };
+      };
+    }catch (e) {
+      console.log("e");
+      console.log(e);
+    }
+   }
+
+   check()
+  }, [recording, voiceRecorder]);
+
   return (
     <div className="App">
       <header className="App-header">
-        {/*<input*/}
-        {/*    type="file"*/}
-        {/*    ref={fileRef}*/}
-        {/*    onChange={playAudio}*/}
-        {/*/>*/}
         <audio
             ref={audioRef}
             // src="/voice-noise.wav"
@@ -522,11 +435,9 @@ function App() {
             controls={true}
             controlsList="nodownload"
         />
-        {/*<AudioRecorder*/}
-        {/*    onFinish={({ id, audio }) => {*/}
-        {/*  audioRecordRef.current.src = window.URL.createObjectURL(audio);*/}
-        {/*}}/>*/}
-
+        <p>Prev speakingText</p>
+        <p>{speakingTextPrev}</p>
+        <p>------------------</p>
         <p>speakingText</p>
         <p>{speakingText}</p>
 
@@ -543,28 +454,14 @@ function App() {
         {/*    </>*/}
         {/*)}*/}
 
-
-        {
-          texts.reverse().map((text, index) => (
-              <p key={index}>
-                {text}
-              </p>
-          ))
-        }
         <button onClick={onClick} style={{
           padding: '10px 20px',
           backgroundColor: recording ? 'red' : 'blue',
         }}>
           {recording ? "Stop" : "Start"} Recording
         </button>
-        {/*<audio ref={audioRecordRef} autoPlay={false} controls/>*/}
-        {/*<button*/}
-        {/*    onClick={downloadAudio}*/}
-        {/*>download audio*/}
-        {/*</button>*/}
-
-        {/*<AudioRecorderV2/>*/}
-
+        <p>Filter: {isFilter ? 'active' : 'inactive'}</p>
+        <button onClick={() => setIsFilter(!isFilter)}>Toggle Filter</button>
       </header>
     </div>
   );

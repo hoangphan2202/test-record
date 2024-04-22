@@ -132,28 +132,10 @@ const AudioRecorderV2 = () => {
 
                     processorRef.current.port.onmessage = (event) => {
                         const inputData = event.data;
-                        // const buffer = new Int16Array(inputData.length);
-                        //
-                        // for (let i = 0; i < inputData.length; i++) {
-                        //     buffer[i] = inputData[i] * 0x7fff;
-                        // }
-                        //
-                        // // Convert audio data to Uint8Array
-                        // const uint8ArrayData = new Uint8Array(buffer.buffer);
-
-                        // Convert Uint8Array to base64
-                        // let binary = '';
-                        // inputData.forEach(function(byte) {
-                        //     binary += String.fromCharCode(byte);
-                        // });
-                        // const base64Data = btoa(binary);
                         var base64 = btoa(
                             new Uint8Array(inputData)
                                 .reduce((data, byte) => data + String.fromCharCode(byte), '')
                         );
-
-                        // const audio = new Audio(`data:audio/wav;base64,${base64Data}`);
-                        // audio.play();
                         ws.send(
                             JSON.stringify({
                                 data: {
@@ -165,16 +147,9 @@ const AudioRecorderV2 = () => {
                             })
                         )
 
-                        // connection.emit("send_audio_data", { audio: audioData });
                     };
-                    // _microphoneSource.connect(_scriptNode);
-                    // _scriptNode.connect(_audioContext.destination);
-                    // setAudioContext(_audioContext);
-                    // setMicrophoneSource(_microphoneSource);
-                    // setScriptNode(_scriptNode);
                 } catch (e) {
                     console.log(e);
-                    // setConnectingWebSocket(false);
                 }
             };
             ws.onerror = (e) => {

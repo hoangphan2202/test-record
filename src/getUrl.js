@@ -4,7 +4,6 @@ import { Buffer } from 'buffer';
 export function assembleAuthUrl(hosturl, apiKey, apiSecret) {
     const ul = new URL(hosturl);
     // Signing date
-    console.log(ul.pathname);
     const date = new Date().toUTCString();
     // Fields participating in signature: host, date, and request-line
     const signString = [`host: ${ul.host}`, `date: ${date}`, `GET ${ul.pathname} HTTP/1.1`];
@@ -22,8 +21,6 @@ export function assembleAuthUrl(hosturl, apiKey, apiSecret) {
     v.append('authorization', authorization);
     // Add the encoded string url encode after url
     const callurl = hosturl + "?" + v.toString();
-    console.log("callurl");
-    console.log(callurl);
     return callurl;
 }
 

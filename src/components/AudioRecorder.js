@@ -15,9 +15,8 @@ const AudioRecorder = ({ onFinish }) => {
             });
 
             const mediaRecorder = new MediaRecorder(audioStream);
-
-            setStream(audioStream);
             setVoiceRecorder(mediaRecorder);
+            setStream(audioStream);
             setIsRecording(true);
         } catch (e) {
             console.log("User didn't allowed us to access the microphone.");
