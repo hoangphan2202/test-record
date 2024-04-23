@@ -1,9 +1,9 @@
 import './App.css';
-import React, {  useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { assembleAuthUrl } from "./getUrl";
-import { VideoStreamMerger } from "video-stream-merger";
 import usePlaySound from "./hooks/usePlaySound";
 import audioBufferToWav from "audiobuffer-to-wav";
+import axios from "axios";
 
 export function processData(
     data) {
@@ -74,6 +74,16 @@ export function formatData(data) {
   return formattedData;
 }
 
+const encodeBase64 = (base64) => {
+  var binaryString = window.atob(base64);
+  var bytes = new Uint8Array(binaryString.length);
+  for (var i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
 
 function App() {
   const [recording, setRecording] = useState(false);
@@ -93,9 +103,11 @@ function App() {
   const [shouldSend, setShouldSend] = useState(false);
   const [voiceRecorder, setVoiceRecorder] = useState(null);
   const [isFilter, setIsFilter] = useState(true);
+  const [isEnd, setIsEnd] = useState(null);
   const audioContextRef = useRef();
   const audioInputRef = useRef();
   const processorRef = useRef();
+
   const setupAudioProcessing = async () => {
     try {
         const ws = new WebSocket(assembleAuthUrl('wss://iat-api-sg.xf-yun.com/v2/iat','dd18aa1ba84c912506c346f5ab04dff3','7141c8e65ebe846eddcb0d89ed0ac4a6'));
@@ -128,11 +140,11 @@ function App() {
                 })
             );
 
-            if (audioRef.current) {
-              audioRef.current.play();
-            }
-            const audioMerger = new VideoStreamMerger();
-            audioMerger.start();
+            // if (audioRef.current) {
+            //   audioRef.current.play();
+            // }
+            // const audioMerger = new VideoStreamMerger();
+            // audioMerger.start();
             const audioStream = await navigator.mediaDevices.getUserMedia({ audio: {
                 sampleRate: 16000,
                 sampleSize: 16,
@@ -141,40 +153,40 @@ function App() {
                 noiseSuppression: isFilter,
               } });
 
-            const audioMediaSource = audioRef?.current?.captureStream();
-            const audioTrack = audioMediaSource?.getAudioTracks();
-            const streamTrack = audioStream?.getAudioTracks();
+            // const audioMediaSource = audioRef?.current?.captureStream();
+            // const audioTrack = audioMediaSource?.getAudioTracks();
+            // const streamTrack = audioStream?.getAudioTracks();
 
-            streamTrack?.map((track) => {
-              console.log("streamTrack");
-              console.log(track);
-              track.enabled = true;
-            })
-
-            audioTrack?.map(async(track) => {
-              console.log("audioTrack");
-              console.log(track);
-              // try {
-              //   audioMediaSource.removeTrack(track);
-              //   // Let it go
-              //   track.stop();
-              // }catch (e) {
-              //   console.log(e);
-              // }
-              track.enabled = false;
-            })
-
-            audioMerger.addStream(audioStream);
-            if (audioMediaSource){
-              console.log("audioStream");
-              console.log(audioStream);
-              console.log("audioMediaSource");
-              console.log(audioMediaSource);
-              audioMerger.addStream(audioMediaSource);
-            }
+            // streamTrack?.map((track) => {
+            //   console.log("streamTrack");
+            //   console.log(track);
+            //   track.enabled = true;
+            // })
+            //
+            // audioTrack?.map(async(track) => {
+            //   console.log("audioTrack");
+            //   console.log(track);
+            //   // try {
+            //   //   audioMediaSource.removeTrack(track);
+            //   //   // Let it go
+            //   //   track.stop();
+            //   // }catch (e) {
+            //   //   console.log(e);
+            //   // }
+            //   track.enabled = false;
+            // })
+            //
+            // audioMerger.addStream(audioStream);
+            // if (audioMediaSource){
+            //   console.log("audioStream");
+            //   console.log(audioStream);
+            //   console.log("audioMediaSource");
+            //   console.log(audioMediaSource);
+            //   audioMerger.addStream(audioMediaSource);
+            // }
 
             setMyStream(audioStream);
-            setAudioMerger(audioMerger);
+            // setAudioMerger(audioMerger);
 
             // // Giả sử `currentStream` là MediaStream hiện tại, bao gồm cả âm thanh từ microphone và audio đang phát
             // const currentStream = audioMerger.result;
@@ -202,7 +214,7 @@ function App() {
             audioContextRef.current.resume();
 
             // if (microphoneStream.getAudioTracks().length > 0) {
-              audioInputRef.current = audioContextRef.current.createMediaStreamSource(audioMerger.result);
+              audioInputRef.current = audioContextRef.current.createMediaStreamSource(audioStream);
               processorRef.current = new AudioWorkletNode(
                   audioContextRef.current,
                   "recorder.worklet"
@@ -307,6 +319,7 @@ function App() {
                 return []
               });
               ws.close()
+              setIsEnd(Date.now())
               // const tracks = myStream.getAudioTracks();
               // for (const track of tracks) {
               //   track.stop();
@@ -380,6 +393,29 @@ function App() {
     return '';
   }, [prevData]);
 
+  useEffect(() => {
+    const getTranslate = async (text) => {
+      try{
+        const resp =await axios.post('https://api-dev.iztalk.ai/api/v1/translates/test-translate-vi-to-en', {
+          text: text,
+        })
+        console.log(resp?.data?.payload?.base64);
+        if (resp?.data?.payload?.base64) {
+          const data = encodeBase64(resp?.data?.payload?.base64);
+          var blob = new Blob([data.buffer], { type: 'audio/wav' });
+          audioRef.current.src = URL.createObjectURL(blob);
+          audioRef.current.play();
+        }
+      }catch (e) {
+        console.log(e);
+      }
+
+    }
+    if (speakingText) {
+      getTranslate(speakingText)
+    }
+  }, [isEnd, speakingText]);
+
 
   // useEffect(() => {
   //   if (shouldSend) {
@@ -394,36 +430,36 @@ function App() {
   /**
    * This hook is triggered when we start the recording
    */
-  React.useEffect(() => {
-   const check = async () => {
-    try {
-      if (!recording || !voiceRecorder) return;
-
-      voiceRecorder.start();
-
-      voiceRecorder.ondataavailable = ({ data }) => {
-        // const audioBlob = event.data;
-        const reader = new FileReader();
-        reader.readAsArrayBuffer(data);
-        reader.onloadend = function() {
-          const audioData = reader.result;
-          const audioContext = new AudioContext();
-          audioContext.decodeAudioData(audioData, function(decodedData) {
-            const wavData = audioBufferToWav(decodedData);
-            const wavBlob = new Blob([wavData], { type: 'audio/wav' });
-            audioRef.current.src = URL.createObjectURL(wavBlob);
-            audioRef.current.play();
-          });
-        };
-      };
-    }catch (e) {
-      console.log("e");
-      console.log(e);
-    }
-   }
-
-   check()
-  }, [recording, voiceRecorder]);
+  // React.useEffect(() => {
+  //  const check = async () => {
+  //   try {
+  //     if (!recording || !voiceRecorder) return;
+  //
+  //     voiceRecorder.start();
+  //
+  //     voiceRecorder.ondataavailable = ({ data }) => {
+  //       // const audioBlob = event.data;
+  //       const reader = new FileReader();
+  //       reader.readAsArrayBuffer(data);
+  //       reader.onloadend = function() {
+  //         const audioData = reader.result;
+  //         const audioContext = new AudioContext();
+  //         audioContext.decodeAudioData(audioData, function(decodedData) {
+  //           const wavData = audioBufferToWav(decodedData);
+  //           const wavBlob = new Blob([wavData], { type: 'audio/wav' });
+  //           audioRef.current.src = URL.createObjectURL(wavBlob);
+  //           // audioRef.current.play();
+  //         });
+  //       };
+  //     };
+  //   }catch (e) {
+  //     console.log("e");
+  //     console.log(e);
+  //   }
+  //  }
+  //
+  //  check()
+  // }, [recording, voiceRecorder]);
 
   return (
     <div className="App">
@@ -435,6 +471,7 @@ function App() {
             controls={true}
             controlsList="nodownload"
         />
+
         <p>Prev speakingText</p>
         <p>{speakingTextPrev}</p>
         <p>------------------</p>
