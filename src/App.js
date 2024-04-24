@@ -5,6 +5,7 @@ import usePlaySound from "./hooks/usePlaySound";
 import audioBufferToWav from "audiobuffer-to-wav";
 import axios from "axios";
 import AudioRecorder from "./components/AudioRecorder";
+import VoiceNative from "./components/VoiceNative";
 
 export function processData(
     data) {
@@ -105,6 +106,8 @@ function App() {
   const [voiceRecorder, setVoiceRecorder] = useState(null);
   const [isFilter, setIsFilter] = useState(true);
   const [isEnd, setIsEnd] = useState(null);
+  const [isNative, setIsNative] = useState(false);
+
   const audioContextRef = useRef();
   const audioInputRef = useRef();
   const processorRef = useRef();
@@ -340,7 +343,7 @@ function App() {
               ws.close()
               setIsEnd(Date.now())
               document.getElementById('audio-btn').click()
-
+              onClick()
               // const tracks = myStream.getAudioTracks();
               // for (const track of tracks) {
               //   track.stop();
@@ -431,7 +434,6 @@ function App() {
     }
   }
 
-
   useEffect(() => {
     if (speakingTextPrev) {
       getTranslate(speakingTextPrev)
@@ -488,6 +490,10 @@ function App() {
   //  check()
   // }, [recording, voiceRecorder]);
 
+  if (isNative) {
+    return  <VoiceNative setIsNative={setIsNative} isNative={isNative}/>
+  }
+
   return (
     <div className="App">
       <header className="App-header">
@@ -537,6 +543,8 @@ function App() {
         </button>
         <p>Filter: {isFilter ? 'active' : 'inactive'}</p>
         <button onClick={() => setIsFilter(!isFilter)}>Toggle Filter</button>
+        <p>Native: {isNative ? 'active' : 'inactive'}</p>
+        <button onClick={() => setIsNative(!isNative)}>Toggle Native</button>
       </header>
     </div>
   );
