@@ -112,15 +112,15 @@ function App() {
     try {
         const ws = new WebSocket(assembleAuthUrl('wss://iat-api-sg.xf-yun.com/v2/iat','dd18aa1ba84c912506c346f5ab04dff3','7141c8e65ebe846eddcb0d89ed0ac4a6'));
         setWebSocket(ws);
-        // const audioRecordStream = await navigator.mediaDevices.getUserMedia({ audio: {
-        //     sampleRate: 16000,
-        //     sampleSize: 16,
-        //     channelCount: 1,
-        //     echoCancellation: isFilter,
-        //     noiseSuppression: isFilter,
-        //   } });
-        // const mediaRecorder = new MediaRecorder(audioRecordStream);
-        // setVoiceRecorder(mediaRecorder);
+        const audioRecordStream = await navigator.mediaDevices.getUserMedia({ audio: {
+            sampleRate: 16000,
+            sampleSize: 16,
+            channelCount: 1,
+            echoCancellation: isFilter,
+            noiseSuppression: isFilter,
+          } });
+        const mediaRecorder = new MediaRecorder(audioRecordStream);
+        setVoiceRecorder(mediaRecorder);
 
       ws.onopen = async () => {
           try {
@@ -145,14 +145,15 @@ function App() {
             // }
             // const audioMerger = new VideoStreamMerger();
             // audioMerger.start();
-            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: {
-                sampleRate: 16000,
-                sampleSize: 16,
-                channelCount: 1,
-                echoCancellation: isFilter,
-                noiseSuppression: isFilter,
-              } });
-
+            // const audioStream = await navigator.mediaDevices.getUserMedia({ audio: {
+            //     sampleRate: 16000,
+            //     sampleSize: 16,
+            //     channelCount: 1,
+            //     echoCancellation: isFilter,
+            //     noiseSuppression: isFilter,
+            //   } });
+            // const mediaRecorder = new MediaRecorder(audioStream);
+            // setVoiceRecorder(mediaRecorder);
             // const audioMediaSource = audioRef?.current?.captureStream();
             // const audioTrack = audioMediaSource?.getAudioTracks();
             // const streamTrack = audioStream?.getAudioTracks();
@@ -185,7 +186,7 @@ function App() {
             //   audioMerger.addStream(audioMediaSource);
             // }
 
-            setMyStream(audioStream);
+            setMyStream(audioRecordStream);
             // setAudioMerger(audioMerger);
 
             // // Giả sử `currentStream` là MediaStream hiện tại, bao gồm cả âm thanh từ microphone và audio đang phát
@@ -257,7 +258,7 @@ function App() {
               noiseSuppression: isFilter,
             });
 
-            const _microphoneSource = _audioContext.createMediaStreamSource(audioStream);
+            const _microphoneSource = _audioContext.createMediaStreamSource(audioRecordStream);
             const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
             _scriptNode.onaudioprocess = function(event) {
               const inputData = event.inputBuffer.getChannelData(0);
@@ -323,7 +324,7 @@ function App() {
               microphoneSource?.disconnect();
               scriptNode?.disconnect();
               audioContext?.close();
-              // stopRecording(audioRecordStream, mediaRecorder)
+              stopRecording(audioRecordStream, mediaRecorder)
               setPrevData(data)
               setData((prevState) => {
                 setPrevData(prevState)
@@ -442,40 +443,49 @@ function App() {
   /**
    * This hook is triggered when we start the recording
    */
-  // React.useEffect(() => {
-  //  const check = async () => {
-  //   try {
-  //     if (!recording || !voiceRecorder) return;
-  //
-  //     voiceRecorder.start();
-  //
-  //     voiceRecorder.ondataavailable = ({ data }) => {
-  //       // const audioBlob = event.data;
-  //       const reader = new FileReader();
-  //       reader.readAsArrayBuffer(data);
-  //       reader.onloadend = function() {
-  //         const audioData = reader.result;
-  //         const audioContext = new AudioContext();
-  //         audioContext.decodeAudioData(audioData, function(decodedData) {
-  //           const wavData = audioBufferToWav(decodedData);
-  //           const wavBlob = new Blob([wavData], { type: 'audio/wav' });
-  //           audioRef.current.src = URL.createObjectURL(wavBlob);
-  //           // audioRef.current.play();
-  //         });
-  //       };
-  //     };
-  //   }catch (e) {
-  //     console.log("e");
-  //     console.log(e);
-  //   }
-  //  }
-  //
-  //  check()
-  // }, [recording, voiceRecorder]);
+  React.useEffect(() => {
+   const check = async () => {
+    try {
+      if (!recording || !voiceRecorder) return;
+
+      voiceRecorder.start();
+
+      voiceRecorder.ondataavailable = ({ data }) => {
+        // const audioBlob = event.data;
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(data);
+        reader.onloadend = function() {
+          const audioData = reader.result;
+          const audioContext = new AudioContext();
+          audioContext.decodeAudioData(audioData, function(decodedData) {
+            const wavData = audioBufferToWav(decodedData);
+            const wavBlob = new Blob([wavData], { type: 'audio/wav' });
+            audioRecordRef.current.src = URL.createObjectURL(wavBlob);
+            // audioRef.current.play();
+          });
+        };
+      };
+    }catch (e) {
+      console.log("e");
+      console.log(e);
+    }
+   }
+
+   check()
+  }, [recording, voiceRecorder]);
 
   return (
     <div className="App">
       <header className="App-header">
+        <p>Record</p>
+        <audio
+            ref={audioRecordRef}
+            // src="/voice-noise.wav"
+            // autoPlay={true}
+            controls={true}
+            controlsList="nodownload"
+        />
+        <p>Translate audio</p>
         <audio
             ref={audioRef}
             // src="/voice-noise.wav"
