@@ -146,6 +146,11 @@ function App() {
             // }
             // const audioMerger = new VideoStreamMerger();
             // audioMerger.start();
+            try {
+              document.getElementById('audio-btn').click()
+            }catch (e) {
+              alert(e)
+            }
             const audioStream = await navigator.mediaDevices.getUserMedia({ audio: {
                 sampleRate: 16000,
                 sampleSize: 16,
@@ -153,11 +158,7 @@ function App() {
                 echoCancellation: isFilter,
                 noiseSuppression: isFilter,
               } });
-            try {
-              document.getElementById('audio-btn').click()
-            }catch (e) {
-              alert(e)
-            }
+
             // const mediaRecorder = new MediaRecorder(audioStream);
             // setVoiceRecorder(mediaRecorder);
             // const audioMediaSource = audioRef?.current?.captureStream();
