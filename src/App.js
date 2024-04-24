@@ -112,15 +112,15 @@ function App() {
     try {
         const ws = new WebSocket(assembleAuthUrl('wss://iat-api-sg.xf-yun.com/v2/iat','dd18aa1ba84c912506c346f5ab04dff3','7141c8e65ebe846eddcb0d89ed0ac4a6'));
         setWebSocket(ws);
-        const audioRecordStream = await navigator.mediaDevices.getUserMedia({ audio: {
-            sampleRate: 16000,
-            sampleSize: 16,
-            channelCount: 1,
-            echoCancellation: isFilter,
-            noiseSuppression: isFilter,
-          } });
-        const mediaRecorder = new MediaRecorder(audioRecordStream);
-        setVoiceRecorder(mediaRecorder);
+        // const audioRecordStream = await navigator.mediaDevices.getUserMedia({ audio: {
+        //     sampleRate: 16000,
+        //     sampleSize: 16,
+        //     channelCount: 1,
+        //     echoCancellation: isFilter,
+        //     noiseSuppression: isFilter,
+        //   } });
+        // const mediaRecorder = new MediaRecorder(audioRecordStream);
+        // setVoiceRecorder(mediaRecorder);
 
       ws.onopen = async () => {
           try {
@@ -296,6 +296,7 @@ function App() {
             setMicrophoneSource(_microphoneSource);
             setScriptNode(_scriptNode);
           } catch (e) {
+            alert(e)
             console.log(e);
             // setConnectingWebSocket(false);
           }
@@ -322,7 +323,7 @@ function App() {
               microphoneSource?.disconnect();
               scriptNode?.disconnect();
               audioContext?.close();
-              stopRecording(audioRecordStream, mediaRecorder)
+              // stopRecording(audioRecordStream, mediaRecorder)
               setPrevData(data)
               setData((prevState) => {
                 setPrevData(prevState)
@@ -339,6 +340,7 @@ function App() {
               // setData([])
             } catch (error) {
               ws.close()
+              alert(e)
 
               console.log('Error stopping recording:', error);
             }
