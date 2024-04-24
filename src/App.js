@@ -207,86 +207,94 @@ function App() {
 
             // audioContextRef.current = new AudioContext();
 
-            audioContextRef.current =  new (window.AudioContext || window.webkitAudioContext);
-
-            await audioContextRef.current.audioWorklet.addModule(
-                "/src/worklets/recorderWorkletProcessor.js"
-            );
-
-            audioContextRef.current.resume();
-
-            // if (microphoneStream.getAudioTracks().length > 0) {
-              audioInputRef.current = audioContextRef.current.createMediaStreamSource(audioStream);
-              processorRef.current = new AudioWorkletNode(
-                  audioContextRef.current,
-                  "recorder.worklet"
-              );
-
-              processorRef.current.connect(audioContextRef.current.destination);
-              audioContextRef.current.resume();
-
-              audioInputRef.current.connect(processorRef.current);
-
-              processorRef.current.port.onmessage = (event) => {
-                const inputData = event.data;
-                var base64 = btoa(
-                    new Uint8Array(inputData)
-                        .reduce((data, byte) => data + String.fromCharCode(byte), '')
-                );
-                ws.send(
-                    JSON.stringify({
-                      data: {
-                        status: 1,
-                        format: 'audio/L16;rate=16000',
-                        encoding: 'raw',
-                        audio: base64,
-                      },
-                    })
-                )
-              };
+            // audioContextRef.current =  new (window.AudioContext || window.webkitAudioContext);
+            //
+            // await audioContextRef.current.audioWorklet.addModule(
+            //     "/src/worklets/recorderWorkletProcessor.js"
+            // );
+            //
+            // audioContextRef.current.resume();
+            //
+            // // if (microphoneStream.getAudioTracks().length > 0) {
+            //   audioInputRef.current = audioContextRef.current.createMediaStreamSource(audioStream);
+            //   processorRef.current = new AudioWorkletNode(
+            //       audioContextRef.current,
+            //       "recorder.worklet"
+            //   );
+            //
+            //   processorRef.current.connect(audioContextRef.current.destination);
+            //   audioContextRef.current.resume();
+            //
+            //   audioInputRef.current.connect(processorRef.current);
+            //
+            //   processorRef.current.port.onmessage = (event) => {
+            //     const inputData = event.data;
+            //     var base64 = btoa(
+            //         new Uint8Array(inputData)
+            //             .reduce((data, byte) => data + String.fromCharCode(byte), '')
+            //     );
+            //     ws.send(
+            //         JSON.stringify({
+            //           data: {
+            //             status: 1,
+            //             format: 'audio/L16;rate=16000',
+            //             encoding: 'raw',
+            //             audio: base64,
+            //           },
+            //         })
+            //     )
+            //   };
 
             // } else {
             //   console.error('No audio tracks in the microphone stream');
             // }
 
-            // const _microphoneSource = _audioContext.createMediaStreamSource(audioMerger.result);
-            // const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
-            // _scriptNode.onaudioprocess = function(event) {
-            //   const inputData = event.inputBuffer.getChannelData(0);
-            //   const buffer = new Int16Array(inputData.length);
-            //
-            //   for (let i = 0; i < inputData.length; i++) {
-            //     buffer[i] = inputData[i] * 0x7fff;
-            //   }
-            //
-            //   // Convert audio data to Uint8Array
-            //   const uint8ArrayData = new Uint8Array(buffer.buffer);
-            //
-            //   // Convert Uint8Array to base64
-            //   let binary = '';
-            //   uint8ArrayData.forEach(function(byte) {
-            //     binary += String.fromCharCode(byte);
-            //   });
-            //   const base64Data = btoa(binary);
-            //   ws.send(
-            //       JSON.stringify({
-            //         data: {
-            //           status: 1,
-            //           format: 'audio/L16;rate=16000',
-            //           encoding: 'raw',
-            //           audio: base64Data,
-            //         },
-            //       })
-            //   )
-            //
-            //   // socket.emit('audio_stream', { audio: base64Data, end: false });
-            //   // Your base64 audio data is now available for processing or handling
-            // };
-            // _microphoneSource.connect(_scriptNode);
-            // _scriptNode.connect(_audioContext.destination);
-            // setAudioContext(_audioContext);
-            // setMicrophoneSource(_microphoneSource);
-            // setScriptNode(_scriptNode);
+            const _audioContext = new (window.AudioContext || window.webkitAudioContext)({
+              sampleRate: 16000,
+              sampleSize: 16,
+              channelCount: 1,
+              echoCancellation: isFilter,
+              noiseSuppression: isFilter,
+            });
+
+            const _microphoneSource = _audioContext.createMediaStreamSource(audioMerger.result);
+            const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
+            _scriptNode.onaudioprocess = function(event) {
+              const inputData = event.inputBuffer.getChannelData(0);
+              const buffer = new Int16Array(inputData.length);
+
+              for (let i = 0; i < inputData.length; i++) {
+                buffer[i] = inputData[i] * 0x7fff;
+              }
+
+              // Convert audio data to Uint8Array
+              const uint8ArrayData = new Uint8Array(buffer.buffer);
+
+              // Convert Uint8Array to base64
+              let binary = '';
+              uint8ArrayData.forEach(function(byte) {
+                binary += String.fromCharCode(byte);
+              });
+              const base64Data = btoa(binary);
+              ws.send(
+                  JSON.stringify({
+                    data: {
+                      status: 1,
+                      format: 'audio/L16;rate=16000',
+                      encoding: 'raw',
+                      audio: base64Data,
+                    },
+                  })
+              )
+
+              // socket.emit('audio_stream', { audio: base64Data, end: false });
+              // Your base64 audio data is now available for processing or handling
+            };
+            _microphoneSource.connect(_scriptNode);
+            _scriptNode.connect(_audioContext.destination);
+            setAudioContext(_audioContext);
+            setMicrophoneSource(_microphoneSource);
+            setScriptNode(_scriptNode);
           } catch (e) {
             console.log(e);
             // setConnectingWebSocket(false);
