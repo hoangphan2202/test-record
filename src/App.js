@@ -257,7 +257,7 @@ function App() {
               noiseSuppression: isFilter,
             });
 
-            const _microphoneSource = _audioContext.createMediaStreamSource(audioMerger.result);
+            const _microphoneSource = _audioContext.createMediaStreamSource(audioStream);
             const _scriptNode = _audioContext.createScriptProcessor(4096, 1, 1);
             _scriptNode.onaudioprocess = function(event) {
               const inputData = event.inputBuffer.getChannelData(0);
@@ -403,28 +403,28 @@ function App() {
     return '';
   }, [prevData]);
 
-  useEffect(() => {
-    const getTranslate = async (text) => {
-      try{
-        const resp =await axios.post('https://api-dev.iztalk.ai/api/v1/translates/test-translate-vi-to-en', {
-          text: text,
-        })
-        console.log(resp?.data?.payload?.base64);
-        if (resp?.data?.payload?.base64) {
-          const data = encodeBase64(resp?.data?.payload?.base64);
-          var blob = new Blob([data.buffer], { type: 'audio/wav' });
-          audioRef.current.src = URL.createObjectURL(blob);
-          audioRef.current.play();
-        }
-      }catch (e) {
-        console.log(e);
+  const getTranslate = async (text) => {
+    try{
+      const resp =await axios.post('https://api-dev.iztalk.ai/api/v1/translates/test-translate-vi-to-en', {
+        text: text,
+      })
+      if (resp?.data?.payload?.base64) {
+        const data = encodeBase64(resp?.data?.payload?.base64);
+        var blob = new Blob([data.buffer], { type: 'audio/wav' });
+        audioRef.current.src = URL.createObjectURL(blob);
+        audioRef.current.play();
       }
+    }catch (e) {
+      console.log(e);
+    }
+  }
 
+
+  useEffect(() => {
+    if (speakingTextPrev) {
+      getTranslate(speakingTextPrev)
     }
-    if (speakingText) {
-      getTranslate(speakingText)
-    }
-  }, [isEnd, speakingText]);
+  }, [isEnd, speakingTextPrev]);
 
 
   // useEffect(() => {
