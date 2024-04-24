@@ -11,7 +11,13 @@ const AudioRecorder = ({ onFinish }) => {
     const onAudioClick = async () => {
         try {
             const audioStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    sampleRate: 16000,
+                    sampleSize: 16,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                }
             });
 
             const mediaRecorder = new MediaRecorder(audioStream);
@@ -19,6 +25,7 @@ const AudioRecorder = ({ onFinish }) => {
             setStream(audioStream);
             setIsRecording(true);
         } catch (e) {
+            console.log(e);
             console.log("User didn't allowed us to access the microphone.");
         }
     };
@@ -56,6 +63,9 @@ const AudioRecorder = ({ onFinish }) => {
                 audioContext.decodeAudioData(audioData, function(decodedData) {
                     const wavData = audioBufferToWav(decodedData);
                     const wavBlob = new Blob([wavData], { type: 'audio/wav' });
+                    console.log(wavBlob);
+                    const elm = document.getElementById('audio-recorder');
+                    elm.src = URL.createObjectURL(wavBlob);
                     setContent(wavBlob)
                 });
             };
@@ -65,18 +75,23 @@ const AudioRecorder = ({ onFinish }) => {
     /**
      * This hook will call our callback after finishing the record
      */
-    React.useEffect(() => {
-        if (isRecording || !content || !stream) return;
-
-        onFinish({ id: stream.id, audio: content });
-
-        setStream(null);
-        setContent(null);
-    }, [isRecording, content]);
+    // React.useEffect(() => {
+    //     if (isRecording || !content || !stream) return;
+    //
+    //     // onFinish({ id: stream.id, audio: content });
+    // const elm = document.getElementById('audio-recorder');
+    //     elm.src = URL.createObjectURL(content);
+    //     setStream(null);
+    //     setContent(null);
+    // }, [isRecording, content]);
 
     return   <button
+        id="audio-btn"
         onClick={!isRecording ? onAudioClick : onStopRecording}
-        className="bg-blue-200 rounded-lg p-2 border hover:border-blue-300"
+        className="bg-blue-200 rounded-lg p-2 border hover:border-blue-300 "
+        style={{
+            display: 'none',
+        }}
     >
         {!isRecording ? "Start Record" : "Stop recording"}
     </button>
