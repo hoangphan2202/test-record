@@ -205,7 +205,9 @@ function App() {
             // // Tạo một MediaStream mới chỉ chứa các track từ microphone
             // const microphoneStream = new MediaStream(microphoneTracks);
 
-            audioContextRef.current = new window.AudioContext();
+            // audioContextRef.current = new AudioContext();
+
+            audioContextRef.current =  new (window.AudioContext || window.webkitAudioContext);
 
             await audioContextRef.current.audioWorklet.addModule(
                 "/src/worklets/recorderWorkletProcessor.js"
