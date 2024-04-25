@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import useVoice from "../hooks/useVoice";
 
-const VoiceNative = ({setIsNative, isNative}) => {
+const VoiceNative = ({type, setType}) => {
     const [message, setMessage] = useState('')
     const { listening, onRecord, isTranslate } = useVoice({ setMessage })
 
@@ -24,9 +24,10 @@ const VoiceNative = ({setIsNative, isNative}) => {
                 <button onClick={onRecord}>
                     {listening ? 'Stop' : 'Start'}
                 </button>
-
-                <p>Native: {isNative ? 'active' : 'inactive'}</p>
-                <button onClick={() => setIsNative(!isNative)}>Toggle Native</button>
+                <p>Type stt: {type}</p>
+                <button onClick={() => setType('iFlytek')}>iFlytek</button>
+                <button onClick={() => setType('Native')}>Native</button>
+                <button onClick={() => setType('Home made')}>Home made</button>
             </header>
         </div>
     );
