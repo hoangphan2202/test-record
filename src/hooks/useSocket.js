@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 import {useEffect, useState} from "react";
-const HOST = 'http://192.168.1.45:65432';
+const HOST = 'https://13f5-2a09-bac5-d469-e6-00-17-263.ngrok-free.app';
 function initEventSocket(socket) {
   socket.on('connect', async () => {
     console.info(`socket connected`);

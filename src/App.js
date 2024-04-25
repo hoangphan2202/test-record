@@ -2,10 +2,10 @@ import './App.css';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { assembleAuthUrl } from "./getUrl";
 import usePlaySound from "./hooks/usePlaySound";
-import audioBufferToWav from "audiobuffer-to-wav";
 import axios from "axios";
 import AudioRecorder from "./components/AudioRecorder";
 import VoiceNative from "./components/VoiceNative";
+import HomeMade from "./components/HomeMade";
 
 export function processData(
     data) {
@@ -106,7 +106,7 @@ function App() {
   const [voiceRecorder, setVoiceRecorder] = useState(null);
   const [isFilter, setIsFilter] = useState(true);
   const [isEnd, setIsEnd] = useState(null);
-  const [isNative, setIsNative] = useState(false);
+  const [type, setType] = useState(false);
 
   const audioContextRef = useRef();
   const audioInputRef = useRef();
@@ -114,6 +114,7 @@ function App() {
 
   const setupAudioProcessing = async () => {
     try {
+        // const ws = new WebSocket(assembleAuthUrl('wss://iat-api-sg.xf-yun.com/v2/iat','dd18aa1ba84c912506c346f5ab04dff3','7141c8e65ebe846eddcb0d89ed0ac4a6'));
         const ws = new WebSocket(assembleAuthUrl('wss://iat-api-sg.xf-yun.com/v2/iat','dd18aa1ba84c912506c346f5ab04dff3','7141c8e65ebe846eddcb0d89ed0ac4a6'));
         setWebSocket(ws);
         // const audioRecordStream = await navigator.mediaDevices.getUserMedia({ audio: {
@@ -490,8 +491,12 @@ function App() {
   //  check()
   // }, [recording, voiceRecorder]);
 
-  if (isNative) {
-    return  <VoiceNative setIsNative={setIsNative} isNative={isNative}/>
+  if (type === 'Native') {
+    return  <VoiceNative type={type} setType={setType}/>
+  }
+
+  if (type === 'Home made') {
+    return  <HomeMade type={type} setType={setType}/>
   }
 
   return (
@@ -543,8 +548,10 @@ function App() {
         </button>
         <p>Filter: {isFilter ? 'active' : 'inactive'}</p>
         <button onClick={() => setIsFilter(!isFilter)}>Toggle Filter</button>
-        <p>Native: {isNative ? 'active' : 'inactive'}</p>
-        <button onClick={() => setIsNative(!isNative)}>Toggle Native</button>
+        <p>Type stt: {type}</p>
+        <button onClick={() => setType('iFlytek')}>iFlytek</button>
+        <button onClick={() => setType('Native')}>Native</button>
+        <button onClick={() => setType('Home made')}>Home made</button>
       </header>
     </div>
   );
