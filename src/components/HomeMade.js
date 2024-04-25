@@ -63,7 +63,6 @@ const HomeMade = () => {
                 const base64Data = btoa(binary);
                 console.log('1111', base64Data.length)
                 socket.emit('audio_stream', { audio: base64Data, end: false });
-                document.getElementById('audio-btn').click()
                 // Your base64 audio data is now available for processing or handling
             };
             _microphoneSource.connect(_scriptNode);
@@ -101,6 +100,8 @@ const HomeMade = () => {
             microphoneSource?.disconnect();
             scriptNode?.disconnect();
             audioContext?.close();
+            document.getElementById('audio-btn').click()
+
             const text =         texts.reverse().map((text, index) => text).join(' ')
             getTranslate(text)
             // setIsEnd(Date.now());
